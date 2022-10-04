@@ -1,44 +1,10 @@
-import { Worker } from 'node:worker_threads';
-import { sha256 } from './crypto.js';
+import Miner from './miner.js';
 
-let thisBlock = {data: 'XXX'};
-let thisWorker = null;
+const miners = Array(3).fill(null).map(m => new Miner());
+miners.forEach(m => m.start());
 
-function editBlock(newData='XXX') {
-  thisBlock.data = newData;
-  thisWorker.terminate();
-  mine(thisBlock)
-    .then(res => console.log(res))
-    .catch(err => console.error(err));
-}
+console.log(miners);
 
-export default function mine(block, difficulty=4) {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      './miner.js', {
-      workerData : {
-        block: block,
-        difficulty: difficulty
-      }
-    });
-
-    thisWorker = worker;
-
-    worker.once('message', block => {
-      const hash = sha256(JSON.stringify(block));
-      if(hash.slice(0, difficulty) != difficulty*'0') return reject(false);
-      return resolve({block: block, hash: hash});
-    });
-
-    worker.on('error', err => reject(`err : ${err}`));
-    worker.on('exit', code => reject(`exit : ${code}`));
-  });
-}
-
-mine(thisBlock)
-  .then(res => console.log(res))
-  .catch(err => console.error(err));
-
-setTimeout(() => {
-  editBlock('YYY');
-}, 250);
+setInterval(() => {
+  miners.forEach(m => m.editLastBlock(Date.now()));
+}, 1000);
